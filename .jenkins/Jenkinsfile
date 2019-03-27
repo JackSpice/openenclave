@@ -6,6 +6,10 @@ cmakeCheckFlags="--warn-uninitialized -Wdev --warn-unused-vars"
 def ACCTest(String label, String compiler, String build_type) {
     stage("${label} ${compiler} SGX1FLC ${build_type}") {
         node("${label}") {
+    cleanWs()
+    checkout scm
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
             def task = """
                        cmake ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=${build_type} ${cmakeCheckFlags}
                        ninja -v
@@ -19,6 +23,10 @@ def ACCTest(String label, String compiler, String build_type) {
 def ACCGNUTest() {
     stage("ACC1804 GNU gcc SGX1FLC") {
         node("ACC-1804") {
+    cleanWs()
+    checkout scm
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
             def task = """
                        cmake ${WORKSPACE} -DUSE_LIBSGX=ON
                        make
@@ -36,6 +44,8 @@ def simulationTest(String version, String platform_mode, String build_type) {
     }
     stage("Sim clang-7 Ubuntu${version} ${platform_mode} ${build_type}") {
         node("nonSGX") {
+    cleanWs()
+    checkout scm
             withEnv(["OE_SIMULATION=1"]) {
                 def task = """
                            cmake ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=${build_type} -DUSE_LIBSGX=${use_libsgx} ${cmakeCheckFlags}
@@ -51,6 +61,10 @@ def simulationTest(String version, String platform_mode, String build_type) {
 def ACCContainerTest(String label, String version) {
     stage("${label} Container RelWithDebInfo") {
         node("${label}") {
+    cleanWs()
+    checkout scm
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
             def task = """
                        cmake ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo ${cmakeCheckFlags}
                        ninja -v
@@ -64,6 +78,10 @@ def ACCContainerTest(String label, String version) {
 def checkDevFlows(String version) {
     stage('Default compiler') {
         node("nonSGX") {
+    cleanWs()
+    checkout scm
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
             oe.dockerImage("oetools:${version}", ".jenkins/Dockerfile.scripts", "--build-arg ubuntu_version=${version}").inside {
                 timeout(30) {
                     dir('build') {
@@ -83,6 +101,8 @@ def checkCI() {
         node("nonSGX") {
             oe.dockerImage("oetools:18.04", ".jenkins/Dockerfile", "--build-arg ubuntu_version=18.04").inside {
                 timeout(10) {
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
                     sh './scripts/check-ci'
                 }
             }
@@ -93,6 +113,10 @@ def checkCI() {
 def win2016LinuxElfBuild(String version, String compiler, String build_type) {
     stage("Ubuntu ${version} SGX1 ${compiler} ${build_type}}") {
         node("nonSGX") {
+    cleanWs()
+    checkout scm
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
             def task = """
                        cmake ${WORKSPACE} -G Ninja -DCMAKE_BUILD_TYPE=${build_type} -DUSE_DEBUG_MALLOC=OFF ${cmakeCheckFlags}
                        ninja -v
@@ -106,7 +130,9 @@ def win2016LinuxElfBuild(String version, String compiler, String build_type) {
             cleanWs()
             checkout scm
             unstash "linux-${compiler}-${build_type}-${version}-${BUILD_NUMBER}"
+            unstash "my-patchfile-${BUILD_NUMBER}"
             bat 'move build linuxbin'
+            bat 'git apply ./patchfile'
             dir('build') {
               bat """
                   vcvars64.bat x64 && \
@@ -124,6 +150,8 @@ def win2016CrossCompile(String build_type) {
         node('SGXFLC-Windows') {
             cleanWs()
             checkout scm
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            bat 'git apply ./patchfile'
             dir("build/X64-${build_type}") {
               bat """
                   vcvars64.bat x64 && \
@@ -136,6 +164,15 @@ def win2016CrossCompile(String build_type) {
     }
 }
 
+stage('Patch-file') {
+ node("nonSGX") {
+    writeFile file: 'patchfile', text: """${PATCH_TEXT}"""
+    sh "cat patchfile"
+    stash includes: 'patchfile', name: "my-patchfile-${BUILD_NUMBER}"
+ }
+}
+
+stage('Parallel stage') {
 parallel "Check Developer Experience Ubuntu 16.04" :            { checkDevFlows('16.04') },
          "Check Developer Experience Ubuntu 18.04" :            { checkDevFlows('18.04') },
          "Check CI" :                                           { checkCI() },
@@ -173,3 +210,4 @@ parallel "Check Developer Experience Ubuntu 16.04" :            { checkDevFlows(
          "Win2016 Ubuntu1804 gcc Debug Linux-Elf-build" :       { win2016LinuxElfBuild('18.04', 'gcc', 'Debug') },
          "Win2016 Debug Cross Compile" :                        { win2016CrossCompile('Debug') },
          "Win2016 Release Cross Compile" :                      { win2016CrossCompile('Release') }
+}

@@ -13,13 +13,14 @@ String dockerBuildArgs(String... args) {
 }
 
 String dockerImage(String tag, String dockerfile = ".jenkins/Dockerfile", String buildArgs = "") {
-    checkout scm
     return docker.build(tag, "${buildArgs} -f ${dockerfile} .")
 }
 
 def oetoolsImage(String version, String compiler, String task, String runArgs="") {
     String buildArgs = dockerBuildArgs("ubuntu_version=${version}")
     dockerImage("oetools:${version}", ".jenkins/Dockerfile", buildArgs).inside(runArgs) {
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
         dir("${WORKSPACE}/build") {
             Run(compiler, task)
         }
@@ -40,6 +41,9 @@ def azureEnvironment(String task) {
                                                   usernameVariable: 'SERVICE_PRINCIPAL_ID'),
                                  string(credentialsId: 'OSCTLabSubID', variable: 'SUBSCRIPTION_ID'),
                                  string(credentialsId: 'TenantID', variable: 'TENANT_ID')]) {
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
+
                     dir('.jenkins/provision') {
                         sh "${task}"
                     }
@@ -56,11 +60,12 @@ def Run(String compiler, String task, Integer timeoutMinutes = 30) {
         c_compiler = "gcc"
         cpp_compiler = "g++"
     }
-    cleanWs()
-    checkout scm
 
     withEnv(["CC=${c_compiler}","CXX=${cpp_compiler}"]) {
         timeout(timeoutMinutes) {
+            unstash "my-patchfile-${BUILD_NUMBER}"
+            sh "git apply ./patchfile"
+
             dir("${WORKSPACE}/build") {
                 sh "${task}"
             }
