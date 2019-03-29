@@ -148,8 +148,7 @@ target_compile_definitions(oecore
     # NOTE: This definition is public to the rest of our project's
     # targets, but should not yet be exposed to consumers of our
     # package.
-    $<BUILD_INTERFACE:OE_API_VERSION=2>
-    _FORTIFY_SOURCE=2)
+    $<BUILD_INTERFACE:OE_API_VERSION=2>)
 
 if(USE_LIBSGX)
     target_compile_definitions(oecore PUBLIC OE_USE_LIBSGX)

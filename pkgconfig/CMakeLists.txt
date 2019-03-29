@@ -22,10 +22,10 @@ set(ENCLAVE_CXXINCLUDES
     "-I\${includedir}/openenclave/3rdparty/libcxx ${ENCLAVE_CINCLUDES}")
 
 set(ENCLAVE_CFLAGS_CLANG
-    "-nostdinc -m64 -fPIE -ftls-model=local-exec -D_FORTIFY_SOURCE=2 -mllvm -x86-speculative-load-hardening")
+    "-nostdinc -m64 -fPIE -ftls-model=local-exec -mllvm -x86-speculative-load-hardening")
 
 set(ENCLAVE_CFLAGS_GCC
-    "-nostdinc -m64 -fPIE -ftls-model=local-exec -D_FORTIFY_SOURCE=2")
+    "-nostdinc -m64 -fPIE -ftls-model=local-exec")
 
 ##==============================================================================
 ##
@@ -69,7 +69,7 @@ set(HOST_CFLAGS_CLANG "-fstack-protector-strong -mllvm -x86-speculative-load-har
 
 set(HOST_CXXFLAGS_CLANG "${HOST_CFLAGS_CLANG}")
 
-set(HOST_CFLAGS_GCC "-fstack-protector-strong")
+set(HOST_CFLAGS_GCC "-fstack-protector-strong -D_FORTIFY_SOURCE=2")
 
 set(HOST_CXXFLAGS_GCC "${HOST_CFLAGS_GCC}")
 
